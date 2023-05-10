@@ -10,11 +10,6 @@ let total = 0;
 let cursor = '';
 const writeStream = fs.createWriteStream(process.env.OUTPUT);
 
-const sleepFunc = (ms) => {
-    const end = new Date().getTime() + ms;
-    while (new Date().getTime() < end) { /* do nothing */ }
-};
-
 const scrape = async () => {
     let url = `https://groups.roblox.com/v1/groups/${groupId}/users?limit=100&cursor=${cursor}&sortOrder=Asc`;
     const options = {
@@ -76,10 +71,10 @@ const scrape = async () => {
                                 resolve();
                             } else if (err) {
                                 console.log(`Oh no, your program seems to be lazy! | ${err}`);
-                                reject();
+                                resolve();
                             } else {
                                 console.log(`Unexpected status code: ${response.statusCode}`);
-                                reject();
+                                resolve();
                             };
                         } else {
                             console.log('I kinda stuck...');
