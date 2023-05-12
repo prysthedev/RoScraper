@@ -23,7 +23,7 @@ const scrape = async () => {
     const requestPromise = new Promise((resolve, reject) => {
         request(options, (err, response) => {
             if (err) {
-                console.error(`Error with request: ${err}`);
+                console.log(`Error with request: ${err}`);
                 reject(err);
                 return;
             }
@@ -37,8 +37,9 @@ const scrape = async () => {
             
                 resolve(ids);
             } else {
-                console.error(`Unexpected status code: ${response.statusCode}`);
-                reject(`Unexpected status code: ${response.statusCode}`);
+                console.log(`Unexpected status code: ${response.statusCode}`);
+                resolve();
+                scrape();
             };
         });
     });
