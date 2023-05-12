@@ -22,7 +22,13 @@ const scrape = async () => {
     
     const requestPromise = new Promise((resolve, reject) => {
         request(options, (err, response) => {
-            if (response.statusCode == 200) {
+            if (err) {
+                console.error(`Error with request: ${err}`);
+                reject(err);
+                return;
+            }
+
+            if (response.statusCode === 200) {
                 let data = response.body;
                 let obj = JSON.parse(data);
     
@@ -31,12 +37,8 @@ const scrape = async () => {
             
                 resolve(ids);
             } else {
-                console.log(`Unexpected status code: ${response.statusCode}`);
-                reject();
-            };
-            if (err) {
-                console.log(`Oh no, your program seems lazy! | ${err}`);
-                reject();
+                console.error(`Unexpected status code: ${response.statusCode}`);
+                reject(`Unexpected status code: ${response.statusCode}`);
             };
         });
     });
@@ -56,28 +58,26 @@ const scrape = async () => {
                 };
                 return new Promise((resolve, reject) => {
                     request(options, (err, response) => {
-                        if (response) {
-                            if (response.statusCode == 200) {
-                                if (response.body[14] == 't') {
-                                    total++;
-                                    valid++;
-                                    writeStream.write(`${id}\n`);
-                                    console.log(`User passed! | Valid: ${valid} Invalid: ${invalid} Total: ${total}`);
-                                } else {
-                                    total++;
-                                    invalid++;
-                                    console.log(`User failed! | Valid: ${valid} Invalid: ${invalid} Total: ${total}`);
-                                };
-                                resolve();
-                            } else if (err) {
-                                console.log(`Oh no, your program seems to be lazy! | ${err}`);
-                                resolve();
+                        if (err) {
+                            console.error(`Error with request: ${err}`);
+                            resolve();
+                            return;
+                        }
+
+                        if (response && response.statusCode === 200) {
+                            if (response.body[14] == 't') {
+                                total++;
+                                valid++;
+                                writeStream.write(`${id}\n`);
+                                console.log(`User passed! | Valid: ${valid} Invalid: ${invalid} Total: ${total}`);
                             } else {
-                                console.log(`Unexpected status code: ${response.statusCode}`);
-                                resolve();
+                                total++;
+                                invalid++;
+                                console.log(`User failed! | Valid: ${valid} Invalid: ${invalid} Total: ${total}`);
                             };
+                            resolve();
                         } else {
-                            console.log('I kinda stuck...');
+                            console.error(`Unexpected status code: ${response.statusCode}`);
                             resolve();
                         };
                     });
@@ -93,7 +93,7 @@ const scrape = async () => {
             };
         })
         .catch(err => {
-            console.log(err);
+            console.error(`Unhandled error: ${err}`);
         });
 };
 
