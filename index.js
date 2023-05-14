@@ -34,6 +34,10 @@ const scrape = async () => {
     
                 let ids = obj.data.map(item => item.user.userId);
                 cursor = obj.nextPageCursor;
+
+                if (!obj.nextPageCursor) {
+                    reject('Scraped all users!');
+                };
             
                 resolve(ids);
             } else {
