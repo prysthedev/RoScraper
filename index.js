@@ -8,6 +8,7 @@ let valid = 0;
 let invalid = 0;
 let total = 0;
 let cursor = '';
+let ids = '';
 const writeStream = fs.createWriteStream(process.env.OUTPUT);
 
 const scrape = async () => {
@@ -31,13 +32,19 @@ const scrape = async () => {
             if (response.statusCode === 200) {
                 let data = response.body;
                 let obj = JSON.parse(data);
-    
-                let ids = obj.data.map(item => item.user.userId);
-                cursor = obj.nextPageCursor;
 
                 if (!obj.nextPageCursor) {
                     reject('Scraped all users!');
                 };
+    
+                if (obj.data.map(item => item.user.userId)) {
+                    ids = obj.data.map(item => item.user.userId);
+                } else {
+                    resolve();
+                    scrape();
+                };
+
+                cursor = obj.nextPageCursor;
             
                 resolve(ids);
             } else {
