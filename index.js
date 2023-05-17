@@ -1,21 +1,68 @@
 const request = require('request');
 const fs = require('fs');
 require('dotenv').config();
-const groupId = parseInt(process.env.GROUP_ID);
 const cookies = fs.readFileSync(process.env.COOKIES, 'utf8').split('\n');
+const keyword = process.env.KEYWORD
 let currentCookieIndex = 0;
 let valid = 0;
 let invalid = 0;
 let total = 0;
-let cursor = '';
 let ids = '';
+let groups = '';
+let cursor2 = '';
 const writeStream = fs.createWriteStream(process.env.OUTPUT);
+let proxyIndex = 0;
+const proxies = fs.readFileSync(process.env.PROXIES, 'utf-8').trim().split('\n');
 
-const scrape = async () => {
-    let url = `https://groups.roblox.com/v1/groups/${groupId}/users?limit=100&cursor=${cursor}&sortOrder=Asc`;
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}  
+
+function getNextProxy() {
+    const proxy = proxies[proxyIndex];
+    proxyIndex = (proxyIndex + 1) % proxies.length;
+    return proxy;
+};
+
+const scrapeGroups = async () => {
+    let url = `https://groups.roblox.com/v1/groups/search?keyword=${keyword}&prioritizeExactMatch=false&limit=100&cursor=${cursor2}`;
     const options = {
         url: url,
         method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    };
+    const requestPromise = new Promise((resolve, reject) => {
+        request(options, (err, response) => {
+            if (response.statusCode == 200) {
+                let data = response.body;
+                let obj = JSON.parse(data);
+                groups = obj.data.map(item => item.id);
+                cursor2 = obj.nextPageCursor;
+                resolve(groups);
+            };
+        });
+    });
+    requestPromise
+    .then(groups => {
+        for (let i = 0; i < groups.length; i++) {
+            scrape(groups[i], '');
+        }
+    })
+    .catch(err => {
+        console.log(err);
+        scrapeGroups();
+    });
+};
+
+const scrape = async (groupId, cursor) => {
+    let proxy = getNextProxy();
+    let url = `https://groups.roblox.com/v1/groups/${groupId}/users?limit=10&cursor=${cursor}&sortOrder=Asc`;
+    const options = {
+        url: url,
+        method: 'GET',
+        proxy: `http://${proxy}`,
         headers: {
             'Content-Type': 'application/json'
         }
@@ -35,22 +82,23 @@ const scrape = async () => {
 
                 if (!obj.nextPageCursor) {
                     reject('Scraped all users!');
+                } else {
+                    cursor = obj.nextPageCursor;
                 };
     
                 if (obj.data.map(item => item.user.userId)) {
                     ids = obj.data.map(item => item.user.userId);
                 } else {
                     resolve();
-                    scrape();
+                    scrape(groupId, cursor);
                 };
 
-                cursor = obj.nextPageCursor;
             
                 resolve(ids);
             } else {
                 console.log(`Unexpected status code: ${response.statusCode}`);
                 resolve();
-                scrape();
+                scrape(groupId, cursor);
             };
         });
     });
@@ -88,6 +136,9 @@ const scrape = async () => {
                                 console.log(`User failed! | Valid: ${valid} Invalid: ${invalid} Total: ${total}`);
                             };
                             resolve();
+                        } else if (response.statusCode == 429) {
+                            console.log('Rate limit exceeded!');
+                            resolve();
                         } else {
                             console.error(`Unexpected status code: ${response.statusCode}`);
                             resolve();
@@ -99,9 +150,10 @@ const scrape = async () => {
         })
         .then(() => {
             if (cursor != '') {
-                scrape(cursor);
+                scrape(groupId, cursor);
             } else {
                 console.log('Completed scraping!')
+                scrapeGroups();
             };
         })
         .catch(err => {
@@ -109,4 +161,4 @@ const scrape = async () => {
         });
 };
 
-scrape();
+scrapeGroups();
